@@ -1,0 +1,477 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>暗盘资金扫描 · 20261027</title>
+<style>
+:root { --bg:#070b12; --card1:#151c26; --card2:#0f151d; --line:#232e3b; --line2:#2c3949;
+        --head:#eef2f7; --body:#c3ccd7; --mut:#6d7987;
+        --gold:#e3b341; --up:#f04a62; --down:#1ebd8c; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:radial-gradient(1100px 420px at 50% -140px, #18223366 0%, transparent 60%), var(--bg);
+       color:var(--body); font:14px/1.65 -apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       -webkit-font-smoothing:antialiased; }
+::selection { background:var(--gold); color:#14100a; }
+.wrap { max-width:1120px; margin:0 auto; padding:28px 20px 64px; }
+/* ── 报头 ── */
+.mast { display:flex; align-items:flex-end; justify-content:space-between; gap:18px;
+        padding-bottom:16px; border-bottom:1px solid var(--line); }
+.mast h1 { font-size:26px; font-weight:800; color:var(--head); letter-spacing:1px; }
+.mast h1 .tick { display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--gold); margin-right:10px; }
+.mast .meta { text-align:right; font-family:Consolas,monospace; font-size:12px; color:var(--mut); line-height:1.6; }
+.mast .meta b { color:var(--gold); }
+/* ── 氛围仪表卡 ── */
+.gauge-card { background:linear-gradient(150deg,var(--card1),var(--card2)); border:1px solid var(--line);
+              border-radius:14px; padding:18px 22px; margin-top:18px; box-shadow:0 1px 0 #ffffff08 inset, 0 14px 34px #00000055; }
+.gauge-top { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+.gauge-top .gt { font-size:12px; letter-spacing:2px; color:var(--mut); }
+.gauge-top .gv { font-family:Consolas,monospace; font-size:15px; font-weight:700; }
+.gauge { position:relative; height:10px; border-radius:6px;
+         background:linear-gradient(90deg,#1ebd8c 0%, #2a3a34 38%, #2c2a33 62%, #f04a62 100%); }
+.gauge .needle { position:absolute; top:-4px; width:4px; height:18px; border-radius:2px; background:#fff;
+                 box-shadow:0 0 8px #ffffff88; }
+.gauge-lab { display:flex; justify-content:space-between; font-size:11px; color:var(--mut); margin-top:7px; }
+.moodline { margin-top:12px; font-size:13px; color:#e8c56a; }
+/* ── 概览卡 ── */
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-top:16px; }
+.card { background:linear-gradient(150deg,var(--card1),var(--card2)); border:1px solid var(--line);
+        border-radius:14px; padding:15px 17px; transition:transform .25s cubic-bezier(.16,1,.3,1), border-color .25s; }
+.card:hover { transform:translateY(-2px); border-color:var(--line2); }
+.card .label { color:var(--mut); font-size:11.5px; letter-spacing:1px; }
+.card .val { font-size:24px; font-weight:800; font-family:Consolas,monospace; margin-top:5px; font-variant-numeric:tabular-nums; }
+.card .sub2 { color:var(--mut); font-size:11px; margin-top:4px; }
+/* ── 模块头(分层编号) ── */
+.mod { display:flex; align-items:center; gap:12px; margin:38px 0 12px; }
+.mod .mno { flex:none; width:30px; height:30px; border:1.5px solid var(--gold); border-radius:8px;
+            color:var(--gold); font-family:Consolas,monospace; font-weight:800; font-size:14px;
+            display:flex; align-items:center; justify-content:center; }
+.mod h2 { font-size:17px; font-weight:800; color:var(--head); letter-spacing:.5px; }
+.mod .hint { color:var(--mut); font-size:11.5px; margin-left:auto; text-align:right; }
+.mod .rule { flex:1; height:1px; background:var(--line); }
+.mod .tag { font-size:10.5px; color:var(--gold); border:1px solid #e3b34155; border-radius:6px; padding:2px 8px; margin-left:8px; }
+/* 个股深挖页的区标题(无编号) */
+h2 { font-size:15px; font-weight:800; color:var(--head); margin:28px 0 10px; letter-spacing:.5px; }
+h2::before { content:""; width:8px; height:8px; background:var(--gold); border-radius:2px;
+             display:inline-block; margin-right:9px; transform:translateY(-1px); }
+/* ── 表格 ── */
+table { width:100%; border-collapse:collapse; background:linear-gradient(150deg,var(--card1),var(--card2));
+        border:1px solid var(--line); border-radius:14px; overflow:hidden; font-size:13px;
+        box-shadow:0 1px 0 #ffffff06 inset; }
+th { text-align:left; color:var(--mut); font-weight:600; font-size:11.5px; letter-spacing:1px;
+     padding:10px 12px; border-bottom:1px solid var(--line); background:#0d1420; }
+td { padding:8px 12px; border-bottom:1px solid #1a222d; }
+tr:last-child td { border-bottom:none; }
+tbody tr:hover { background:#ffffff05; }
+td.num { font-family:Consolas,monospace; text-align:right; font-variant-numeric:tabular-nums; }
+td .code { color:var(--mut); font-size:11px; margin-left:6px; }
+td.rk { color:var(--mut); width:30px; font-family:Consolas,monospace; }
+.pos { color:var(--up); } .neg { color:var(--down); } .dim { color:var(--mut); }
+/* ── 明暗双条看板 ── */
+.brow { display:flex; align-items:center; gap:12px; background:linear-gradient(150deg,var(--card1),var(--card2));
+        border:1px solid var(--line); border-radius:12px; padding:10px 14px; margin-bottom:7px;
+        transition:border-color .2s; }
+.brow:hover { border-color:var(--line2); }
+.brow-div { border-color:#e3b34177; box-shadow:0 0 0 1px #e3b34122, 0 0 18px #e3b34111; }
+.brk { color:var(--mut); width:22px; font-family:Consolas,monospace; font-size:12px; }
+.bname { width:158px; font-weight:700; color:var(--head); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bpair { flex:1; display:grid; grid-template-columns:18px 1fr 82px; align-items:center; gap:4px 8px; }
+.blab { color:var(--mut); font-size:10.5px; }
+.bbar { background:#0a0f16; border-radius:5px; height:12px; overflow:hidden; }
+.bfill { height:100%; border-radius:5px; }
+.bdpos, .bbpos { background:linear-gradient(90deg,#f04a62cc,#f04a62); }
+.bdneg, .bbneg { background:linear-gradient(90deg,#1ebd8ccc,#1ebd8c); }
+.bnum { font-family:Consolas,monospace; font-size:12px; text-align:right; font-variant-numeric:tabular-nums; }
+.bextra { color:var(--mut); font-size:11px; width:70px; text-align:right; font-family:Consolas,monospace; }
+/* ── 背离双卡 ── */
+.duo { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:860px) { .duo { grid-template-columns:1fr; } }
+.duo .dc { border-radius:14px; border:1px solid var(--line); overflow:hidden; }
+.duo .dc-a { background:linear-gradient(160deg,#1c1a10,#10161e); }
+.duo .dc-b { background:linear-gradient(160deg,#20131a,#10161e); }
+.duo .dhead { padding:10px 14px; font-size:12.5px; font-weight:700; letter-spacing:.5px; }
+.dc-a .dhead { color:#e8c56a; border-bottom:1px solid #e3b34133; }
+.dc-b .dhead { color:#f08a9c; border-bottom:1px solid #f04a6233; }
+.duo table { border:none; border-radius:0; background:transparent; box-shadow:none; }
+.duo th { background:transparent; }
+.warn { background:#241116; border:1px solid #f04a6240; color:#f0a5b2; border-radius:10px;
+        padding:10px 14px; margin:12px 0; font-size:12.5px; }
+.foot { margin-top:34px; background:linear-gradient(150deg,var(--card1),var(--card2));
+        border:1px solid var(--line); border-radius:14px; padding:16px 20px;
+        color:var(--mut); font-size:11.5px; line-height:1.9; }
+.foot b { color:var(--gold); }
+.chart { width:100%; background:linear-gradient(150deg,var(--card1),var(--card2));
+         border:1px solid var(--line); border-radius:14px; }
+</style></head><body><div class="wrap">
+
+<div class="mast">
+  <h1><span class="tick"></span>暗盘资金扫描</h1>
+  <div class="meta">数据日期 <b>20261027</b> · 快照 155100<br>生成于 2026-10-27 22:48:37</div>
+</div>
+<div class="sub" style="margin-top:8px">看主力在公开通道和隐蔽通道是不是同向</div>
+
+<div class="gauge-card">
+  <div class="gauge-top"><span class="gt">市场暗盘氛围 · 净流入家数占比</span>
+    <span class="gv" style="color:#1ebd8c">-675.87亿 · 11.3%</span></div>
+  <div class="gauge"><div class="needle" style="left:calc(11% - 2px)"></div></div>
+  <div class="gauge-lab"><span>净流出(谨慎)</span><span>净流入(偏多)</span></div>
+  <div class="moodline">◆ 暗盘整体净流出, 偏谨慎氛围 —— 背离榜是本报告核心: 两条通道方向相反的票, 往往比单纯的流入榜更有信息量。</div>
+</div>
+
+<div class="grid">
+  <div class="card"><div class="label">全市场暗盘合计</div><div class="val" style="color:#1ebd8c">-675.87亿</div>
+    <div class="sub2">覆盖 5647 只(含北交所)</div></div>
+  <div class="card"><div class="label">全市场明盘合计</div><div class="val" style="color:#1ebd8c">-473.61亿</div>
+    <div class="sub2">公开通道资金</div></div>
+  <div class="card"><div class="label">暗盘净流入家数占比</div><div class="val">11.3%</div>
+    <div class="sub2">越高越多资金在隐蔽吸货</div></div>
+  <div class="card"><div class="label">明暗背离样本</div><div class="val" style="font-size:20px">15 / 15</div>
+    <div class="sub2">暗进明出 / 明进暗出</div></div>
+</div>
+
+<div class="mod"><span class="mno">01</span><h2>板块明暗盘对比 · 行业</h2><span class="rule"></span><span class=hint>按明+暗合计排序 · 琥珀光圈=两条通道唱反调</span></div>
+<div class="brow">
+  <span class="brk">1</span><span class="bname">银行Ⅱ</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:100%"></div></div><span class="bnum pos">+10.00亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:77%"></div></div><span class="bnum pos">+7.70亿</span>
+  </div>
+  <span class="bextra">42/0家</span>
+</div><div class="brow">
+  <span class="brk">2</span><span class="bname">一般零售</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:94%"></div></div><span class="bnum pos">+9.37亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:25%"></div></div><span class="bnum pos">+2.49亿</span>
+  </div>
+  <span class="bextra">28/31家</span>
+</div><div class="brow">
+  <span class="brk">3</span><span class="bname">工业金属</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:16%"></div></div><span class="bnum pos">+1.59亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:28%"></div></div><span class="bnum pos">+2.82亿</span>
+  </div>
+  <span class="bextra">14/44家</span>
+</div><div class="brow">
+  <span class="brk">4</span><span class="bname">航运港口</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:10%"></div></div><span class="bnum pos">+9803万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:11%"></div></div><span class="bnum pos">+1.06亿</span>
+  </div>
+  <span class="bextra">13/23家</span>
+</div><div class="brow">
+  <span class="brk">5</span><span class="bname">水泥</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:1%"></div></div><span class="bnum neg">-1188万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:2%"></div></div><span class="bnum pos">+1924万</span>
+  </div>
+  <span class="bextra">4/19家</span>
+</div><div class="brow">
+  <span class="brk">6</span><span class="bname">装修装饰Ⅱ</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:0%"></div></div><span class="bnum neg">-329万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:3%"></div></div><span class="bnum neg">-2568万</span>
+  </div>
+  <span class="bextra">2/19家</span>
+</div><div class="brow brow-div">
+  <span class="brk">7</span><span class="bname">煤炭</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:13%"></div></div><span class="bnum pos">+1.31亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:19%"></div></div><span class="bnum neg">-1.91亿</span>
+  </div>
+  <span class="bextra">19/15家</span>
+</div><div class="brow">
+  <span class="brk">8</span><span class="bname">饰品</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:3%"></div></div><span class="bnum neg">-2896万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:3%"></div></div><span class="bnum neg">-3205万</span>
+  </div>
+  <span class="bextra">3/15家</span>
+</div><div class="brow">
+  <span class="brk">9</span><span class="bname">贸易Ⅱ</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:5%"></div></div><span class="bnum neg">-4806万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:3%"></div></div><span class="bnum neg">-2720万</span>
+  </div>
+  <span class="bextra">0/14家</span>
+</div><div class="brow">
+  <span class="brk">10</span><span class="bname">汽车服务</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:4%"></div></div><span class="bnum neg">-4339万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:3%"></div></div><span class="bnum neg">-3352万</span>
+  </div>
+  <span class="bextra">0/9家</span>
+</div><div class="brow brow-div">
+  <span class="brk">11</span><span class="bname">煤炭开采</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:9%"></div></div><span class="bnum pos">+9223万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:17%"></div></div><span class="bnum neg">-1.69亿</span>
+  </div>
+  <span class="bextra">16/11家</span>
+</div><div class="brow">
+  <span class="brk">12</span><span class="bname">化学纤维</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:6%"></div></div><span class="bnum neg">-6212万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:2%"></div></div><span class="bnum neg">-2415万</span>
+  </div>
+  <span class="bextra">6/21家</span>
+</div><div class="brow">
+  <span class="brk">13</span><span class="bname">房屋建设Ⅱ</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:2%"></div></div><span class="bnum neg">-2271万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:7%"></div></div><span class="bnum neg">-6793万</span>
+  </div>
+  <span class="bextra">2/6家</span>
+</div><div class="brow">
+  <span class="brk">14</span><span class="bname">保险Ⅱ</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:1%"></div></div><span class="bnum pos">+1338万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:10%"></div></div><span class="bnum neg">-1.05亿</span>
+  </div>
+  <span class="bextra">3/2家</span>
+</div><div class="brow">
+  <span class="brk">15</span><span class="bname">教育</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:13%"></div></div><span class="bnum neg">-1.30亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:3%"></div></div><span class="bnum pos">+2740万</span>
+  </div>
+  <span class="bextra">2/15家</span>
+</div><div class='dim' style='margin-top:6px'>琥珀底=明暗方向背离(两条通道唱反调)</div>
+<div class="mod"><span class="mno">02</span><h2>板块明暗盘对比 · 概念</h2><span class="rule"></span><span class=hint>按明+暗合计排序 · 琥珀光圈=两条通道唱反调</span></div>
+<div class="brow brow-div">
+  <span class="brk">1</span><span class="bname">冰雪经济</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:4%"></div></div><span class="bnum neg">-1782万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:89%"></div></div><span class="bnum pos">+4.50亿</span>
+  </div>
+  <span class="bextra">13/29家</span>
+</div><div class="brow">
+  <span class="brk">2</span><span class="bname">彩票概念</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:11%"></div></div><span class="bnum pos">+5340万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:48%"></div></div><span class="bnum pos">+2.40亿</span>
+  </div>
+  <span class="bextra">3/17家</span>
+</div><div class="brow">
+  <span class="brk">3</span><span class="bname">轮毂电机</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:19%"></div></div><span class="bnum pos">+9446万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:35%"></div></div><span class="bnum pos">+1.78亿</span>
+  </div>
+  <span class="bextra">5/4家</span>
+</div><div class="brow">
+  <span class="brk">4</span><span class="bname">退税商店</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:36%"></div></div><span class="bnum pos">+1.81亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:9%"></div></div><span class="bnum pos">+4458万</span>
+  </div>
+  <span class="bextra">9/11家</span>
+</div><div class="brow brow-div">
+  <span class="brk">5</span><span class="bname">油气设服</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:29%"></div></div><span class="bnum neg">-1.47亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:54%"></div></div><span class="bnum pos">+2.70亿</span>
+  </div>
+  <span class="bextra">6/48家</span>
+</div><div class="brow">
+  <span class="brk">6</span><span class="bname">社区团购</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:20%"></div></div><span class="bnum pos">+1.01亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:1%"></div></div><span class="bnum pos">+465万</span>
+  </div>
+  <span class="bextra">11/28家</span>
+</div><div class="brow">
+  <span class="brk">7</span><span class="bname">盲盒经济</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:3%"></div></div><span class="bnum pos">+1759万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:15%"></div></div><span class="bnum pos">+7440万</span>
+  </div>
+  <span class="bextra">5/8家</span>
+</div><div class="brow">
+  <span class="brk">8</span><span class="bname">环氧丙烷</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:1%"></div></div><span class="bnum neg">-290万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:1%"></div></div><span class="bnum neg">-386万</span>
+  </div>
+  <span class="bextra">3/20家</span>
+</div><div class="brow brow-div">
+  <span class="brk">9</span><span class="bname">天然气</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:87%"></div></div><span class="bnum neg">-4.37亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:75%"></div></div><span class="bnum pos">+3.79亿</span>
+  </div>
+  <span class="bextra">17/114家</span>
+</div><div class="brow brow-div">
+  <span class="brk">10</span><span class="bname">空气能热泵</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:47%"></div></div><span class="bnum neg">-2.36亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:32%"></div></div><span class="bnum pos">+1.62亿</span>
+  </div>
+  <span class="bextra">5/32家</span>
+</div><div class="brow">
+  <span class="brk">11</span><span class="bname">托育服务</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:11%"></div></div><span class="bnum neg">-5413万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:5%"></div></div><span class="bnum neg">-2487万</span>
+  </div>
+  <span class="bextra">0/6家</span>
+</div><div class="brow">
+  <span class="brk">12</span><span class="bname">低碳冶金</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:3%"></div></div><span class="bnum neg">-1373万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:14%"></div></div><span class="bnum neg">-7157万</span>
+  </div>
+  <span class="bextra">1/6家</span>
+</div><div class="brow">
+  <span class="brk">13</span><span class="bname">噪声防治</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:20%"></div></div><span class="bnum neg">-1.01亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:1%"></div></div><span class="bnum pos">+731万</span>
+  </div>
+  <span class="bextra">1/8家</span>
+</div><div class="brow brow-div">
+  <span class="brk">14</span><span class="bname">跨境支付</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:100%"></div></div><span class="bnum neg">-5.04亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:80%"></div></div><span class="bnum pos">+4.05亿</span>
+  </div>
+  <span class="bextra">13/53家</span>
+</div><div class="brow">
+  <span class="brk">15</span><span class="bname">医废处理</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdneg" style="width:12%"></div></div><span class="bnum neg">-6049万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbneg" style="width:8%"></div></div><span class="bnum neg">-4210万</span>
+  </div>
+  <span class="bextra">5/27家</span>
+</div><div class='dim' style='margin-top:6px'>琥珀底=明暗方向背离(两条通道唱反调)</div>
+<div class="mod"><span class="mno">03</span><h2>个股明暗盘对比</h2><span class="rule"></span><span class=hint>按明+暗合计排序</span></div>
+<div class="brow">
+  <span class="brk">1</span><span class="bname">雪人集团</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:27%"></div></div><span class="bnum pos">+1.52亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:100%"></div></div><span class="bnum pos">+5.71亿</span>
+  </div>
+  <span class="bextra">活跃7%</span>
+</div><div class="brow">
+  <span class="brk">2</span><span class="bname">大洋电机</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:23%"></div></div><span class="bnum pos">+1.30亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:88%"></div></div><span class="bnum pos">+5.05亿</span>
+  </div>
+  <span class="bextra">活跃9%</span>
+</div><div class="brow">
+  <span class="brk">3</span><span class="bname">兴业银行</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:21%"></div></div><span class="bnum pos">+1.18亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:81%"></div></div><span class="bnum pos">+4.63亿</span>
+  </div>
+  <span class="bextra">活跃3%</span>
+</div><div class="brow">
+  <span class="brk">4</span><span class="bname">粤 传 媒</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:26%"></div></div><span class="bnum pos">+1.49亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:67%"></div></div><span class="bnum pos">+3.83亿</span>
+  </div>
+  <span class="bextra">活跃8%</span>
+</div><div class="brow">
+  <span class="brk">5</span><span class="bname">海洋王</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:43%"></div></div><span class="bnum pos">+2.45亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:41%"></div></div><span class="bnum pos">+2.31亿</span>
+  </div>
+  <span class="bextra">活跃12%</span>
+</div><div class="brow">
+  <span class="brk">6</span><span class="bname">华天科技</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:37%"></div></div><span class="bnum pos">+2.12亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:38%"></div></div><span class="bnum pos">+2.18亿</span>
+  </div>
+  <span class="bextra">活跃5%</span>
+</div><div class="brow">
+  <span class="brk">7</span><span class="bname">方正电机</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:21%"></div></div><span class="bnum pos">+1.19亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:50%"></div></div><span class="bnum pos">+2.84亿</span>
+  </div>
+  <span class="bextra">活跃10%</span>
+</div><div class="brow">
+  <span class="brk">8</span><span class="bname">光库科技</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:7%"></div></div><span class="bnum pos">+4166万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:50%"></div></div><span class="bnum pos">+2.84亿</span>
+  </div>
+  <span class="bextra">活跃1%</span>
+</div><div class="brow">
+  <span class="brk">9</span><span class="bname">万华化学</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:22%"></div></div><span class="bnum pos">+1.27亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:32%"></div></div><span class="bnum pos">+1.83亿</span>
+  </div>
+  <span class="bextra">活跃4%</span>
+</div><div class="brow">
+  <span class="brk">10</span><span class="bname">贵州茅台</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:8%"></div></div><span class="bnum pos">+4408万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:45%"></div></div><span class="bnum pos">+2.56亿</span>
+  </div>
+  <span class="bextra">活跃1%</span>
+</div><div class="brow">
+  <span class="brk">11</span><span class="bname">浙江世宝</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:10%"></div></div><span class="bnum pos">+5645万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:40%"></div></div><span class="bnum pos">+2.31亿</span>
+  </div>
+  <span class="bextra">活跃6%</span>
+</div><div class="brow">
+  <span class="brk">12</span><span class="bname">招商银行</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:12%"></div></div><span class="bnum pos">+7132万</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:38%"></div></div><span class="bnum pos">+2.15亿</span>
+  </div>
+  <span class="bextra">活跃2%</span>
+</div><div class="brow">
+  <span class="brk">13</span><span class="bname">富临精工</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:28%"></div></div><span class="bnum pos">+1.58亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:22%"></div></div><span class="bnum pos">+1.27亿</span>
+  </div>
+  <span class="bextra">活跃9%</span>
+</div><div class="brow">
+  <span class="brk">14</span><span class="bname">国芳集团</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:35%"></div></div><span class="bnum pos">+2.02亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:13%"></div></div><span class="bnum pos">+7233万</span>
+  </div>
+  <span class="bextra">活跃17%</span>
+</div><div class="brow">
+  <span class="brk">15</span><span class="bname">慈星股份</span>
+  <div class="bpair">
+    <div class="blab">暗</div><div class="bbar"><div class="bfill bdpos" style="width:41%"></div></div><span class="bnum pos">+2.34亿</span>
+    <div class="blab">明</div><div class="bbar"><div class="bfill bbpos" style="width:6%"></div></div><span class="bnum pos">+3704万</span>
+  </div>
+  <span class="bextra">活跃13%</span>
+</div><div class='dim' style='margin-top:6px'>琥珀底=明暗方向背离(两条通道唱反调)</div>
+
+<div class="mod"><span class="mno">04</span><h2>明暗背离双榜</h2><span class="rule"></span><span class=hint>线索不是结论, 结合位置/题材/量能再看</span></div>
+<div class="duo">
+  <div class="dc dc-a">
+    <div class="dhead">A · 暗进明出 — 隐蔽通道吸筹, 公开通道流出</div>
+    <table><thead><tr><th>#</th><th>名称</th><th>暗盘净流入</th><th>明盘净流入</th><th>活跃</th><th>涨幅</th><th>行业</th></tr></thead><tbody><tr><td class='rk'>1</td><td><b>天娱数科</b><span class='code'>002354</span></td><td class='num pos'>+2.44亿</td><td class='num neg'>-3.95亿</td><td class='num'>5%</td><td class='num'>+1.10%</td><td class='num'>传媒</td></tr><tr><td class='rk'>2</td><td><b>福莱新材</b><span class='code'>605488</span></td><td class='num pos'>+1.81亿</td><td class='num neg'>-1.27亿</td><td class='num'>8%</td><td class='num'>+5.29%</td><td class='num'>塑料</td></tr><tr><td class='rk'>3</td><td><b>襄阳轴承</b><span class='code'>000678</span></td><td class='num pos'>+1.27亿</td><td class='num neg'>-1.01亿</td><td class='num'>9%</td><td class='num'>+10.03%</td><td class='num'>汽车零部件</td></tr><tr><td class='rk'>4</td><td><b>皇台酒业</b><span class='code'>000995</span></td><td class='num pos'>+1.24亿</td><td class='num neg'>-4877万</td><td class='num'>16%</td><td class='num'>+6.81%</td><td class='num'>食品饮料</td></tr><tr><td class='rk'>5</td><td><b>上纬新材</b><span class='code'>688585</span></td><td class='num pos'>+1.21亿</td><td class='num neg'>-3.12亿</td><td class='num'>5%</td><td class='num'>+1.94%</td><td class='num'>塑料</td></tr><tr><td class='rk'>6</td><td><b>安记食品</b><span class='code'>603696</span></td><td class='num pos'>+1.02亿</td><td class='num neg'>-1808万</td><td class='num'>14%</td><td class='num'>+2.91%</td><td class='num'>食品饮料</td></tr><tr><td class='rk'>7</td><td><b>新北洋</b><span class='code'>002376</span></td><td class='num pos'>+9717万</td><td class='num neg'>-1052万</td><td class='num'>8%</td><td class='num'>+3.95%</td><td class='num'>计算机设备</td></tr><tr><td class='rk'>8</td><td><b>中塑股份</b><span class='code'>301686</span></td><td class='num pos'>+9642万</td><td class='num neg'>-486万</td><td class='num'>16%</td><td class='num'>+15.11%</td><td class='num'>塑料</td></tr><tr><td class='rk'>9</td><td><b>统一股份</b><span class='code'>600506</span></td><td class='num pos'>+9379万</td><td class='num neg'>-2188万</td><td class='num'>12%</td><td class='num'>+2.38%</td><td class='num'>石油石化</td></tr><tr><td class='rk'>10</td><td><b>达瑞电子</b><span class='code'>300976</span></td><td class='num pos'>+9219万</td><td class='num neg'>-1354万</td><td class='num'>8%</td><td class='num'>+6.98%</td><td class='num'>消费电子</td></tr><tr><td class='rk'>11</td><td><b>科瑞思</b><span class='code'>301314</span></td><td class='num pos'>+8477万</td><td class='num neg'>-3236万</td><td class='num'>15%</td><td class='num'>+20.00%</td><td class='num'>通信设备</td></tr><tr><td class='rk'>12</td><td><b>敏芯股份</b><span class='code'>688286</span></td><td class='num pos'>+8469万</td><td class='num neg'>-6388万</td><td class='num'>8%</td><td class='num'>+2.84%</td><td class='num'></td></tr><tr><td class='rk'>13</td><td><b>果麦文化</b><span class='code'>301052</span></td><td class='num pos'>+8036万</td><td class='num neg'>-1000万</td><td class='num'>8%</td><td class='num'>+3.51%</td><td class='num'>传媒</td></tr><tr><td class='rk'>14</td><td><b>大业股份</b><span class='code'>603278</span></td><td class='num pos'>+7948万</td><td class='num neg'>-2.09亿</td><td class='num'>4%</td><td class='num'>+0.87%</td><td class='num'>通用设备</td></tr><tr><td class='rk'>15</td><td><b>华依科技</b><span class='code'>688071</span></td><td class='num pos'>+7069万</td><td class='num neg'>-8267万</td><td class='num'>6%</td><td class='num'>+2.61%</td><td class='num'>专用设备</td></tr></tbody></table>
+  </div>
+  <div class="dc dc-b">
+    <div class="dhead">B · 明进暗出 — 公开通道拉抬, 隐蔽通道撤退</div>
+    <table><thead><tr><th>#</th><th>名称</th><th>明盘净流入</th><th>暗盘净流入</th><th>活跃</th><th>涨幅</th><th>行业</th></tr></thead><tbody><tr><td class='rk'>1</td><td><b>中际旭创</b><span class='code'>300308</span></td><td class='num pos'>+5.26亿</td><td class='num neg'>-7.45亿</td><td class='num'>5%</td><td class='num'>-2.94%</td><td class='num'>通信设备</td></tr><tr><td class='rk'>2</td><td><b>药明康德</b><span class='code'>603259</span></td><td class='num pos'>+3.84亿</td><td class='num neg'>-5.38亿</td><td class='num'>6%</td><td class='num'>-3.09%</td><td class='num'>医疗服务</td></tr><tr><td class='rk'>3</td><td><b>先导基电</b><span class='code'>600641</span></td><td class='num pos'>+3.18亿</td><td class='num neg'>-5376万</td><td class='num'>2%</td><td class='num'>+0.62%</td><td class='num'></td></tr><tr><td class='rk'>4</td><td><b>长鑫科技</b><span class='code'>688825</span></td><td class='num pos'>+1.45亿</td><td class='num neg'>-1.60亿</td><td class='num'>1%</td><td class='num'>+0.80%</td><td class='num'></td></tr><tr><td class='rk'>5</td><td><b>思瑞浦</b><span class='code'>688536</span></td><td class='num pos'>+1.40亿</td><td class='num neg'>-8785万</td><td class='num'>10%</td><td class='num'>-4.57%</td><td class='num'></td></tr><tr><td class='rk'>6</td><td><b>国泰海通</b><span class='code'>601211</span></td><td class='num pos'>+1.28亿</td><td class='num neg'>-4852万</td><td class='num'>3%</td><td class='num'>-2.05%</td><td class='num'></td></tr><tr><td class='rk'>7</td><td><b>潍柴动力</b><span class='code'>000338</span></td><td class='num pos'>+1.16亿</td><td class='num neg'>-3947万</td><td class='num'>3%</td><td class='num'>-0.61%</td><td class='num'>汽车零部件</td></tr><tr><td class='rk'>8</td><td><b>国科微</b><span class='code'>300672</span></td><td class='num pos'>+1.12亿</td><td class='num neg'>-1.21亿</td><td class='num'>10%</td><td class='num'>-3.08%</td><td class='num'></td></tr><tr><td class='rk'>9</td><td><b>慈文传媒</b><span class='code'>002343</span></td><td class='num pos'>+1.08亿</td><td class='num neg'>-9490万</td><td class='num'>5%</td><td class='num'>-10.00%</td><td class='num'>传媒</td></tr><tr><td class='rk'>10</td><td><b>翱捷科技-U</b><span class='code'>688220</span></td><td class='num pos'>+9174万</td><td class='num neg'>-1.33亿</td><td class='num'>14%</td><td class='num'>-7.37%</td><td class='num'></td></tr><tr><td class='rk'>11</td><td><b>厦门钨业</b><span class='code'>600549</span></td><td class='num pos'>+8769万</td><td class='num neg'>-650万</td><td class='num'>1%</td><td class='num'>+0.69%</td><td class='num'>有色金属</td></tr><tr><td class='rk'>12</td><td><b>三一重工</b><span class='code'>600031</span></td><td class='num pos'>+7650万</td><td class='num neg'>-1327万</td><td class='num'>2%</td><td class='num'>-1.09%</td><td class='num'></td></tr><tr><td class='rk'>13</td><td><b>仕佳光子</b><span class='code'>688313</span></td><td class='num pos'>+7551万</td><td class='num neg'>-2.19亿</td><td class='num'>11%</td><td class='num'>-4.26%</td><td class='num'>通信设备</td></tr><tr><td class='rk'>14</td><td><b>科翔股份</b><span class='code'>300903</span></td><td class='num pos'>+7212万</td><td class='num neg'>-4602万</td><td class='num'>3%</td><td class='num'>-0.53%</td><td class='num'>元件</td></tr><tr><td class='rk'>15</td><td><b>炬光科技</b><span class='code'>688167</span></td><td class='num pos'>+6979万</td><td class='num neg'>-9464万</td><td class='num'>12%</td><td class='num'>-3.99%</td><td class='num'></td></tr></tbody></table>
+  </div>
+</div>
+<div class="warn">B 榜(明进暗出)是"表面热闹、底下撤退"的经典形态 —— 出现在此榜且涨幅已大的票, 格外小心追高。</div>
+
+<div class="mod"><span class="mno">05</span><h2>暗盘净流入 TOP20</h2><span class="rule"></span><span class=hint>个股榜 · 带活跃度/涨幅/行业</span></div>
+<table><thead><tr><th>#</th><th>名称</th><th>暗盘净流入</th><th>明盘净流入</th><th>活跃度</th><th>涨幅</th><th>行业</th></tr></thead><tbody><tr><td class='rk'>1</td><td><b>海洋王</b><span class='code'>002724</span></td><td class='num pos'>+2.45亿</td><td class='num pos'>+2.31亿</td><td class='num'>12%</td><td class='num'>+10.00%</td><td class='num'>家用电器</td></tr><tr><td class='rk'>2</td><td><b>天娱数科</b><span class='code'>002354</span></td><td class='num pos'>+2.44亿</td><td class='num neg'>-3.95亿</td><td class='num'>5%</td><td class='num'>+1.10%</td><td class='num'>传媒</td></tr><tr><td class='rk'>3</td><td><b>慈星股份</b><span class='code'>300307</span></td><td class='num pos'>+2.34亿</td><td class='num pos'>+3704万</td><td class='num'>13%</td><td class='num'>+8.00%</td><td class='num'>专用设备</td></tr><tr><td class='rk'>4</td><td><b>东百集团</b><span class='code'>600693</span></td><td class='num pos'>+2.32亿</td><td class='num pos'>+2098万</td><td class='num'>16%</td><td class='num'>+7.65%</td><td class='num'>一般零售</td></tr><tr><td class='rk'>5</td><td><b>华天科技</b><span class='code'>002185</span></td><td class='num pos'>+2.12亿</td><td class='num pos'>+2.18亿</td><td class='num'>5%</td><td class='num'>+3.15%</td><td class='num'></td></tr><tr><td class='rk'>6</td><td><b>国芳集团</b><span class='code'>601086</span></td><td class='num pos'>+2.02亿</td><td class='num pos'>+7233万</td><td class='num'>17%</td><td class='num'>+10.03%</td><td class='num'>一般零售</td></tr><tr><td class='rk'>7</td><td><b>福莱新材</b><span class='code'>605488</span></td><td class='num pos'>+1.81亿</td><td class='num neg'>-1.27亿</td><td class='num'>8%</td><td class='num'>+5.29%</td><td class='num'>塑料</td></tr><tr><td class='rk'>8</td><td><b>紫金矿业</b><span class='code'>601899</span></td><td class='num pos'>+1.62亿</td><td class='num pos'>+8735万</td><td class='num'>3%</td><td class='num'>+1.38%</td><td class='num'>有色金属</td></tr><tr><td class='rk'>9</td><td><b>富临精工</b><span class='code'>300432</span></td><td class='num pos'>+1.58亿</td><td class='num pos'>+1.27亿</td><td class='num'>9%</td><td class='num'>+3.28%</td><td class='num'>电力设备</td></tr><tr><td class='rk'>10</td><td><b>模塑科技</b><span class='code'>000700</span></td><td class='num pos'>+1.58亿</td><td class='num pos'>+1363万</td><td class='num'>8%</td><td class='num'>+3.90%</td><td class='num'>汽车零部件</td></tr><tr><td class='rk'>11</td><td><b>雪人集团</b><span class='code'>002639</span></td><td class='num pos'>+1.52亿</td><td class='num pos'>+5.71亿</td><td class='num'>7%</td><td class='num'>+5.24%</td><td class='num'>通用设备</td></tr><tr><td class='rk'>12</td><td><b>百大集团</b><span class='code'>600865</span></td><td class='num pos'>+1.50亿</td><td class='num pos'>+3715万</td><td class='num'>17%</td><td class='num'>+10.03%</td><td class='num'>一般零售</td></tr><tr><td class='rk'>13</td><td><b>粤 传 媒</b><span class='code'>002181</span></td><td class='num pos'>+1.49亿</td><td class='num pos'>+3.83亿</td><td class='num'>8%</td><td class='num'>+6.56%</td><td class='num'>传媒</td></tr><tr><td class='rk'>14</td><td><b>新华百货</b><span class='code'>600785</span></td><td class='num pos'>+1.46亿</td><td class='num pos'>+2996万</td><td class='num'>18%</td><td class='num'>+9.97%</td><td class='num'>一般零售</td></tr><tr><td class='rk'>15</td><td><b>大洋电机</b><span class='code'>002249</span></td><td class='num pos'>+1.30亿</td><td class='num pos'>+5.05亿</td><td class='num'>9%</td><td class='num'>+10.00%</td><td class='num'>电力设备</td></tr><tr><td class='rk'>16</td><td><b>襄阳轴承</b><span class='code'>000678</span></td><td class='num pos'>+1.27亿</td><td class='num neg'>-1.01亿</td><td class='num'>9%</td><td class='num'>+10.03%</td><td class='num'>汽车零部件</td></tr><tr><td class='rk'>17</td><td><b>万华化学</b><span class='code'>600309</span></td><td class='num pos'>+1.27亿</td><td class='num pos'>+1.83亿</td><td class='num'>4%</td><td class='num'>+3.96%</td><td class='num'>化学制品</td></tr><tr><td class='rk'>18</td><td><b>皇台酒业</b><span class='code'>000995</span></td><td class='num pos'>+1.24亿</td><td class='num neg'>-4877万</td><td class='num'>16%</td><td class='num'>+6.81%</td><td class='num'>食品饮料</td></tr><tr><td class='rk'>19</td><td><b>上纬新材</b><span class='code'>688585</span></td><td class='num pos'>+1.21亿</td><td class='num neg'>-3.12亿</td><td class='num'>5%</td><td class='num'>+1.94%</td><td class='num'>塑料</td></tr><tr><td class='rk'>20</td><td><b>方正电机</b><span class='code'>002196</span></td><td class='num pos'>+1.19亿</td><td class='num pos'>+2.84亿</td><td class='num'>10%</td><td class='num'>+9.04%</td><td class='num'>电力设备</td></tr></tbody></table>
+<div class="mod"><span class="mno">06</span><h2>明盘净流入 TOP10</h2><span class="rule"></span><span class=hint>公开通道榜 · 带活跃度/涨幅/行业</span></div>
+<table><thead><tr><th>#</th><th>名称</th><th>明盘净流入</th><th>暗盘净流入</th><th>活跃度</th><th>涨幅</th><th>行业</th></tr></thead><tbody><tr><td class='rk'>1</td><td><b>雪人集团</b><span class='code'>002639</span></td><td class='num pos'>+5.71亿</td><td class='num pos'>+1.52亿</td><td class='num'>7%</td><td class='num'>+5.24%</td><td class='num'>通用设备</td></tr><tr><td class='rk'>2</td><td><b>中际旭创</b><span class='code'>300308</span></td><td class='num pos'>+5.26亿</td><td class='num neg'>-7.45亿</td><td class='num'>5%</td><td class='num'>-2.94%</td><td class='num'>通信设备</td></tr><tr><td class='rk'>3</td><td><b>大洋电机</b><span class='code'>002249</span></td><td class='num pos'>+5.05亿</td><td class='num pos'>+1.30亿</td><td class='num'>9%</td><td class='num'>+10.00%</td><td class='num'>电力设备</td></tr><tr><td class='rk'>4</td><td><b>兴业银行</b><span class='code'>601166</span></td><td class='num pos'>+4.63亿</td><td class='num pos'>+1.18亿</td><td class='num'>3%</td><td class='num'>+2.25%</td><td class='num'>银行Ⅱ</td></tr><tr><td class='rk'>5</td><td><b>药明康德</b><span class='code'>603259</span></td><td class='num pos'>+3.84亿</td><td class='num neg'>-5.38亿</td><td class='num'>6%</td><td class='num'>-3.09%</td><td class='num'>医疗服务</td></tr><tr><td class='rk'>6</td><td><b>粤 传 媒</b><span class='code'>002181</span></td><td class='num pos'>+3.83亿</td><td class='num pos'>+1.49亿</td><td class='num'>8%</td><td class='num'>+6.56%</td><td class='num'>传媒</td></tr><tr><td class='rk'>7</td><td><b>先导基电</b><span class='code'>600641</span></td><td class='num pos'>+3.18亿</td><td class='num neg'>-5376万</td><td class='num'>2%</td><td class='num'>+0.62%</td><td class='num'></td></tr><tr><td class='rk'>8</td><td><b>方正电机</b><span class='code'>002196</span></td><td class='num pos'>+2.84亿</td><td class='num pos'>+1.19亿</td><td class='num'>10%</td><td class='num'>+9.04%</td><td class='num'>电力设备</td></tr><tr><td class='rk'>9</td><td><b>光库科技</b><span class='code'>300620</span></td><td class='num pos'>+2.84亿</td><td class='num pos'>+4166万</td><td class='num'>1%</td><td class='num'>+2.94%</td><td class='num'>通信设备</td></tr><tr><td class='rk'>10</td><td><b>贵州茅台</b><span class='code'>600519</span></td><td class='num pos'>+2.56亿</td><td class='num pos'>+4408万</td><td class='num'>1%</td><td class='num'>+0.44%</td><td class='num'>食品饮料</td></tr></tbody></table>
+
+<div class="foot">
+口径声明: 「暗盘资金」为东方财富平台量化模型的<b>估算口径</b>, 非交易所官方披露数据; 金额单位已换算(亿/万);
+个股榜覆盖约 5375 只, 全市场快照覆盖 5647 只(含北交所/沪B), 两个口径入选范围不同属正常。<br>
+背离榜 A = 暗盘净流入&gt;0 且明盘净流出&lt;0(取暗盘前 15); 背离榜 B = 明盘净流入&gt;0 且暗盘净流出&lt;0(取明盘前 15);
+对比看板按"明+暗合计"降序, 琥珀光圈行=明暗方向背离。<br>
+本工具只做数据整理与呈现, 不输出买卖点, 不构成投资建议; 据此操作, 风险自负。<br>
+个股深挖: python darkpool_scan.py --code 600519(日度明暗盘历史五联图)。
+</div>
+</div></body></html>
