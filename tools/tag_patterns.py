@@ -7,6 +7,7 @@
   【明进暗出】 当日明盘净流入 且 暗盘净流出 (skill 背离B, 警示)
   【单日脉冲】 当日暗盘净流入但连进仅1-2天 (持续性不足)
 """
+import os
 import re
 import sys
 from pathlib import Path
