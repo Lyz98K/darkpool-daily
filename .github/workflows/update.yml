@@ -1,0 +1,51 @@
+name: 暗盘资金日报更新
+
+on:
+  schedule:
+    # 北京时间 工作日 09:30-16:30 每30分钟 (UTC 1:30-8:30); 收盘后16:30一次定稿
+    - cron: "0 1-8 * * 1-5"
+    - cron: "30 1-8 * * 1-5"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: darkpool-update
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 生成报告+观察清单+形态标签
+        run: |
+          cd tools
+          python darkpool_scan.py --no-open
+          LATEST=$(ls -t research_out/暗盘资金_*.html | head -1)
+          cp "$LATEST" ../index.html
+          cd ..
+          export REPORT_PATH="$PWD/index.html"
+          python tools/gen_watchlist.py
+          python tools/tag_patterns.py
+
+      - name: 提交并部署
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo "内容无变化, 跳过"
+          else
+            git commit -qm "自动更新 $(TZ=Asia/Shanghai date +%Y-%m-%d\ %H:%M)"
+            git push
+          fi
