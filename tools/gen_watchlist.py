@@ -4,6 +4,7 @@
 
 定位: 数据呈现与研究参考, 不输出买卖指令/目标价。
 """
+import os
 import base64
 import json
 import subprocess
@@ -143,7 +144,7 @@ def render_section(cands, date_str):
 
 
 def main():
-    out_html = Path("/workspace/darkpool_daily.html")
+    out_html = Path(os.environ.get("REPORT_PATH", "/workspace/darkpool_daily.html"))
     if not out_html.exists():
         print("报告文件不存在, 退出")
         sys.exit(1)
