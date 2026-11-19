@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 """形态标签标注器: 在报告的个股表格中, 为每只股票标注 skill 框架定义的"积极/警示形态"标签。
 
-import os
 标签 = 数据形态名, 不是"利好"判断, 不是买入建议。
   【持续吸筹】 暗盘连进>=3天 且 明暗双正 且 近5日暗盘净额>0
   【暗进明出】 当日暗盘大额净流入 且 明盘净流出 (skill 背离A)
   【明进暗出】 当日明盘净流入 且 暗盘净流出 (skill 背离B, 警示)
   【单日脉冲】 当日暗盘净流入但连进仅1-2天 (持续性不足)
 """
+import os
 import re
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path.home() / ".codebuddy/skills/暗盘资金-skill/scripts"))
+_here = Path(__file__).resolve().parent
+if (_here / "darkpool_scan.py").exists():
+    sys.path.insert(0, str(_here))
+else:
+    sys.path.insert(0, str(Path.home() / ".codebuddy/skills/暗盘资金-skill/scripts"))
 import darkpool_scan as d  # noqa: E402
 
 OUT = Path(os.environ.get("REPORT_PATH", "/workspace/darkpool_daily.html"))
