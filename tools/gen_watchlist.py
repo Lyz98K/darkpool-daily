@@ -4,7 +4,6 @@
 
 定位: 数据呈现与研究参考, 不输出买卖指令/目标价。
 """
-import os
 import base64
 import json
 import subprocess
@@ -12,7 +11,7 @@ import sys
 import time
 from pathlib import Path
 
-SKILL = Path(__file__).resolve().parent
+SKILL = Path.home() / ".codebuddy/skills/暗盘资金-skill/scripts"
 sys.path.insert(0, str(SKILL))
 import darkpool_scan as d  # noqa: E402
 
@@ -93,6 +92,29 @@ def render_section(cands, date_str):
         ma5s = f"{c['ma5']:.2f}" if c["ma5"] else "—"
         ma10s = f"{c['ma10']:.2f}" if c["ma10"] else "—"
         ref = f"回踩 {ma10s}(10日线) 附近观察承接" if c["ma10"] else "暂无均线参考"
+        if i == 1:
+            # 头条卡: 今日数据强度第一名
+            cards.append(f"""
+<div class="brow" style="display:block;background:linear-gradient(135deg,#ffb0202e,#151c26 60%);border:1.5px solid #ffb020;box-shadow:inset 4px 0 0 #ffb020, 0 0 28px #ffb02033">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+    <span style="background:linear-gradient(90deg,#ff4d2e,#ffb020);color:#fff;font-weight:900;font-size:13px;padding:3px 14px;border-radius:8px;letter-spacing:2px">🔥 今日头条</span>
+    <span style="background:linear-gradient(90deg,#ffd75e,#ffb020);color:#1a1205;font-weight:800;font-size:11px;padding:2px 9px;border-radius:6px">★ 持续吸筹</span>
+    <b style="color:#ffd75e;font-size:19px">{c['name']}({c['code']})</b>
+    <span style="color:#c3ccd7;font-size:13px">{c.get('industry') or '—'} · 收盘 <b style="color:#f04a62">{c['close']:.2f}</b> · 今日 <b style="color:#f04a62">{c['pct_chg']:+.2f}%</b></span>
+  </div>
+  <div style="font-size:13px;line-height:2;color:#dbe3ec">
+    <b style="color:#e3b341">头条依据(全部为数据事实):</b> 暗盘连进 <b style="color:#f04a62">{c['streak']}</b> 天 ·
+    近5日暗盘净额 <b style="color:#f04a62">{yi(c['d5'])}</b> / 明盘 {yi(c['b5'])} ·
+    今日暗盘 {yi(c['dark_net'])} 活跃度 {c['dark_active']*100:.0f}%<br>
+    <b style="color:#e3b341">观察参考位(数据位,非买入指令):</b> 5日线 {ma5s} / 10日线 {ma10s} →
+    {ref}; 若放量跌破10日线则观察逻辑失效<br>
+    <b style="color:#e3b341">失效条件:</b> 暗盘转为净流出 ≥2 天, 或明暗双撤
+  </div>
+  <div style="font-size:11px;color:#9aa5b1;margin-top:8px;border-top:1px dashed #e3b34144;padding-top:6px">
+    ⚠ 头条=今日全部候选中数据强度综合得分第 1 名(连进天数×近5日暗盘净额), 表示"资金形态最强", 不代表明天上涨, 更不构成买入建议。暗盘为平台估算口径。
+  </div>
+</div>""")
+            continue
         cards.append(f"""
 <div class="brow" style="display:block;background:linear-gradient(90deg,#ffb0201f,#151c26);border:1px solid #ffb02077;box-shadow:inset 3px 0 0 #ffb020, 0 0 18px #ffb0201a">
   <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;flex-wrap:wrap">
@@ -110,7 +132,7 @@ def render_section(cands, date_str):
   </div>
 </div>""")
     return f"""
-<div class="mod"><span class="mno">00</span><h2>次日观察清单(自动生成)</h2>
+<div class="mod"><span class="mno">00</span><h2>今日头条 · 次日观察清单(自动生成)</h2>
 <span class="tag">★ 持续吸筹形态</span></div>
 <div class="warn" style="border-color:#e3b34140;color:#e8c56a">
 ◆ 本板块为<b>数据筛选结果</b>：列表中的个股全部满足「<b>暗盘连进≥3天 + 明暗双正 + 近5日暗盘净额&gt;0 + 当日涨幅&lt;8%</b>」，即报告中金色高亮的 <b>★持续吸筹</b> 形态。
@@ -121,7 +143,7 @@ def render_section(cands, date_str):
 
 
 def main():
-    out_html = Path(os.environ.get("REPORT_PATH", "/workspace/darkpool_daily.html"))
+    out_html = Path("/workspace/darkpool_daily.html")
     if not out_html.exists():
         print("报告文件不存在, 退出")
         sys.exit(1)
