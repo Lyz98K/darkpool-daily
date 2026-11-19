@@ -12,7 +12,8 @@ import sys
 import time
 from pathlib import Path
 
-SKILL = Path.home() / ".codebuddy/skills/暗盘资金-skill/scripts"
+_here = Path(__file__).resolve().parent
+SKILL = _here if (_here / "darkpool_scan.py").exists() else Path.home() / ".codebuddy/skills/暗盘资金-skill/scripts"
 sys.path.insert(0, str(SKILL))
 import darkpool_scan as d  # noqa: E402
 
